@@ -143,6 +143,36 @@ let userLeftHandler = async (user) => {
 }
 
 
+// it will be called when the user click on the video frame then it'll expand the camera video frame
+let switchToCamera = async () => {
+  try {
+    // here we inserrting the player for the camera in a display frame
+    player = `
+       <div class="video__container" id="user-container-${uid}">
+         <div class="video-player" id="user-${uid}"></div>
+       </div>
+      `;
+
+    document.getElementById("streams__container").insertAdjacentHTML("beforeend", player);
+    displayFrame.insertAdjacentHTML("beforeend", player);
+
+    // mute the audio and video tracks for the screen 
+    await localTracks[0].setMuted(true);
+    await localTracks[1].setMuted(true);
+
+    document.getElementById(`mic-btn`).classList.remove('active');
+    document.getElementById(`screen-btn`).classList.remove('active');
+
+    // then we are going to publish the camera tracks & unpublish the screen tracks according to the user
+    localTracks[1].play(`user-${uid}`); // play the camera tracks in the display frame of the user
+    await client.publish(localTracks[1]); // only publish the camera tracks
+
+
+  } catch (error) {
+    console.error("Failed to switch to camera:", error);
+  }
+}
+
 
 // toggle camera
 let camerabtn = document.getElementById('camera-btn');
@@ -210,13 +240,31 @@ let toggleScreenShare = async (e) => {
     userIdInDisplayFrame = `user-container-${uid}`;
     localScreenTracks.play(`user-${uid}`);
 
+    // when user share the screen then it'll unpublish the video track
+    await client.unpublish([localTracks[1]]);
+    // and publish the screen track
+    await client.publish([localScreenTracks]);
+
+
+    // (optional) if displayfram is removed then it'll increate the size of the users profile
+    let videoFrames = document.getElementsByClassName('video__container');
+    for ( let videoframe of videoFrames){
+      if(videoframe.id != userIdInDisplayFrame){
+        videoframe.style.width = '100px';
+        videoframe.style.height = '100px';
+      }
+    }
+
+
   }else{
-    // await client.unpublish(localScreenTracks);
-    // localScreenTracks.close();
     shareingScreen = false;
-    camerabtn.classList.add('active'); // if screen is off then it'll on the camera
-    camerabtn.style.display = 'none';
-    btn.classList.remove('active');
+    camerabtn.style.display = 'block';
+    document.getElementById(`user-container-${uid}`).remove();
+    await client.unpublish([localScreenTracks]);
+
+    // after removing the display frame it'll publish the video track
+    switchToCamera();
+
   }
 }
 
